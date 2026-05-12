@@ -1,0 +1,7 @@
+name = "on-tap-api"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "APP_STORE"
+id = "865b68232d47448685bc2bb09a071fe0"

@@ -117,11 +117,11 @@
 <div class="app-container" id="appContainer">
   <!-- Màn hình đăng ký tên -->
   <div class="screen active" id="screenRegister">
-    <h2>Dang ky</h2>
-    <p style="margin-bottom:16px;">Nhap ten dang ky</p>
+    <h2>Dang nhap</h2>
+    <p style="margin-bottom:16px;">Nhap ten cua ban de bat dau</p>
     <input type="text" id="inputUsername" placeholder="Ten cua ban...">
     <div class="btn-group center" style="margin-top:16px;">
-      <button class="primary" id="btnRegister">Enter</button>
+      <button class="primary" id="btnRegister">Vao hoc</button>
     </div>
   </div>
 
@@ -193,7 +193,6 @@
     <div class="btn-group center" style="margin-top:16px;"><button id="btnBackFromHistDetail">Quay lai</button></div>
   </div>
 
-  <!-- Overlay cho hộp thoại tráo câu hỏi -->
   <div class="overlay" id="overlayShuffle">
     <div class="dialog">
       <p>Ban co muon trao cau hoi khong?</p>
@@ -204,7 +203,6 @@
     </div>
   </div>
 
-  <!-- Overlay cho BXH -->
   <div class="overlay" id="overlayBXH">
     <div class="dialog" style="max-width: 350px; text-align: left;">
       <h3 style="text-align:center;">Bang xep hang</h3>
@@ -217,35 +215,40 @@
 </div>
 
 <script>
+// ==============================
+// CẤU HÌNH: THAY URL WORKER CỦA BẠN SAU KHI DEPLOY
+// ==============================
+const API_URL = 'https://on-tap-api.e14n.workers.dev/data';
+
 (function() {
-  const STORAGE_KEY = 'study_app_shared_v2';
   const USER_KEY = 'study_current_user';
   let appData = { subjects: [], history: [] };
   let currentUser = '';
 
+  // ---- User ----
   function loadUser() {
     const saved = localStorage.getItem(USER_KEY);
     if (saved) currentUser = saved.trim();
     else currentUser = '';
   }
-  function saveUser() {
-    localStorage.setItem(USER_KEY, currentUser);
+  function saveUser() { localStorage.setItem(USER_KEY, currentUser); }
+
+  // ---- API ----
+  async function fetchDataFromServer() {
+    try {
+      const res = await fetch(API_URL);
+      if (res.ok) appData = await res.json();
+    } catch(e) { console.warn('Không lấy được dữ liệu từ server:', e); }
   }
 
-  function saveData() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); } catch(e) { alert('Khong luu duoc du lieu.'); }
-  }
-  function loadData() {
+  async function saveDataToServer() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if(raw) {
-        const d = JSON.parse(raw);
-        appData.subjects = d.subjects || [];
-        appData.history = d.history || [];
-      } else {
-        appData = { subjects:[], history:[] };
-      }
-    } catch(e) { appData = { subjects:[], history:[] }; }
+      await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(appData)
+      });
+    } catch(e) { alert('Lỗi kết nối, không lưu được thay đổi.'); console.error(e); }
   }
 
   function escapeHTML(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -303,6 +306,7 @@
     return { matchCount: length, totalChars: correctClean.length };
   }
 
+  // Hiển thị màn hình
   const screens = {
     register:'screenRegister', main:'screenMain', createName:'screenCreateName',
     createQuestions:'screenCreateQuestions', reviewList:'screenReviewList',
@@ -316,9 +320,16 @@
     const target = document.getElementById(id);
     if(target) target.classList.add('active');
     window.scrollTo({top:0,behavior:'instant'});
+    if (id === 'screenReviewList') refreshDataAndRender('reviewList');
+    else if (id === 'screenHistory') refreshDataAndRender('history');
   }
 
-  // Biến tạm
+  async function refreshDataAndRender(mode) {
+    await fetchDataFromServer();
+    if (mode === 'reviewList') renderReviewList();
+    else if (mode === 'history') renderHistoryList();
+  }
+
   let tempSubjectName = '';
   let tempQuestions = [];
   let editingSubjectId = null;
@@ -327,7 +338,7 @@
   let quizStartTime = null;
   let quizTimer = null;
 
-  // ========== ĐĂNG KÝ / ĐĂNG NHẬP ==========
+  // ========== Đăng ký ==========
   document.getElementById('btnRegister').addEventListener('click', () => {
     const name = document.getElementById('inputUsername').value.trim();
     if (!name) { alert('Vui long nhap ten.'); return; }
@@ -339,20 +350,23 @@
 
   function updateUserIndicator() {
     const el = document.getElementById('userIndicator');
-    if (el) el.textContent = currentUser ? 'Ten : ' + currentUser : '';
+    if (el) el.textContent = currentUser ? 'Nguoi dung: ' + currentUser : '';
   }
 
-  // Kiểm tra khi khởi động
-  loadUser();
-  loadData();
-  if (currentUser) {
-    updateUserIndicator();
-    showScreen('screenMain');
-  } else {
-    showScreen('screenRegister');
+  // Khởi động
+  async function init() {
+    loadUser();
+    if (currentUser) {
+      updateUserIndicator();
+      await fetchDataFromServer();
+      showScreen('screenMain');
+    } else {
+      showScreen('screenRegister');
+    }
   }
+  init();
 
-  // Các nút menu chính
+  // ========== Menu ==========
   document.getElementById('btnGoCreate').addEventListener('click', ()=>{
     tempSubjectName = ''; tempQuestions = []; editingSubjectId = null;
     document.getElementById('inputSubjectName').value = '';
@@ -360,16 +374,10 @@
     document.getElementById('btnFinishCreate').textContent = 'Hoan thanh';
     showScreen(screens.createName);
   });
-  document.getElementById('btnGoReview').addEventListener('click', ()=>{
-    renderReviewList();
-    showScreen(screens.reviewList);
-  });
-  document.getElementById('btnGoHistory').addEventListener('click', ()=>{
-    renderHistoryList();
-    showScreen(screens.history);
-  });
+  document.getElementById('btnGoReview').addEventListener('click', ()=> showScreen(screens.reviewList));
+  document.getElementById('btnGoHistory').addEventListener('click', ()=> showScreen(screens.history));
 
-  // Tạo tự luận
+  // ========== Tạo tự luận ==========
   document.getElementById('btnCancelCreate').addEventListener('click', ()=> showScreen(screens.main));
   document.getElementById('btnNextToQuestions').addEventListener('click', ()=>{
     const name = document.getElementById('inputSubjectName').value.trim();
@@ -379,9 +387,7 @@
     if(editingSubjectId) {
       const sub = appData.subjects.find(s=>s.id===editingSubjectId);
       tempQuestions = sub ? sub.questions.map(q=>({question:q.question, answer:q.answer})) : [];
-    } else {
-      tempQuestions = [];
-    }
+    } else { tempQuestions = []; }
     rebuildQuestionBlocks();
     showScreen(screens.createQuestions);
   });
@@ -390,14 +396,11 @@
     const container = document.getElementById('questionsContainer');
     container.innerHTML = '';
     tempQuestions.forEach((q, idx) => {
-      const block = document.createElement('div');
-      block.className = 'question-block';
+      const block = document.createElement('div'); block.className = 'question-block';
       block.innerHTML = `
         <div class="q-label">Cau ${idx+1}</div>
-        <label>Cau hoi:</label>
-        <textarea class="q-question" data-idx="${idx}" placeholder="Nhap noi dung cau hoi...">${escapeHTML(q.question)}</textarea>
-        <label>Dap an:</label>
-        <textarea class="q-answer" data-idx="${idx}" placeholder="Nhap dap an...">${escapeHTML(q.answer)}</textarea>
+        <label>Cau hoi:</label><textarea class="q-question" data-idx="${idx}" placeholder="Nhap noi dung cau hoi...">${escapeHTML(q.question)}</textarea>
+        <label>Dap an:</label><textarea class="q-answer" data-idx="${idx}" placeholder="Nhap dap an...">${escapeHTML(q.answer)}</textarea>
         <button class="small danger btn-remove-q" data-idx="${idx}" style="margin-top:6px;">Xoa cau nay</button>
       `;
       container.appendChild(block);
@@ -409,14 +412,12 @@
       });
     });
   }
-  document.getElementById('btnAddQuestion').addEventListener('click', ()=>{
-    tempQuestions.push({question:'', answer:''}); rebuildQuestionBlocks();
-  });
+  document.getElementById('btnAddQuestion').addEventListener('click', ()=>{ tempQuestions.push({question:'', answer:''}); rebuildQuestionBlocks(); });
   document.getElementById('btnBackToName').addEventListener('click', ()=>{
     document.getElementById('inputSubjectName').value = tempSubjectName;
     showScreen(screens.createName);
   });
-  document.getElementById('btnFinishCreate').addEventListener('click', ()=>{
+  document.getElementById('btnFinishCreate').addEventListener('click', async ()=>{
     document.querySelectorAll('#questionsContainer .q-question').forEach(ta => {
       const idx = parseInt(ta.dataset.idx); if(idx>=0 && idx<tempQuestions.length) tempQuestions[idx].question = ta.value;
     });
@@ -433,23 +434,21 @@
       }
     } else {
       appData.subjects.push({
-        id: genId(),
-        name: tempSubjectName,
+        id: genId(), name: tempSubjectName,
         questions: tempQuestions.map((q,i)=>({id:i, question:q.question, answer:q.answer})),
-        createdAt: Date.now(),
-        creator: currentUser
+        createdAt: Date.now(), creator: currentUser
       });
     }
-    saveData();
+    await saveDataToServer();
     alert('Da luu mon hoc.');
     editingSubjectId = null;
     showScreen(screens.main);
   });
 
-  // Danh sách môn ôn tập
+  // ========== Ôn tập ==========
   function renderReviewList() {
     const container = document.getElementById('reviewSubjectList');
-    if(appData.subjects.length===0) {
+    if(!appData.subjects.length) {
       container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Chua co mon hoc nao.</p>';
       return;
     }
@@ -471,8 +470,6 @@
       </div>`;
     });
     container.innerHTML = html;
-
-    // Gắn sự kiện
     container.querySelectorAll('.btn-start-review').forEach(b => b.addEventListener('click', (e)=>{
       const sid = e.currentTarget.dataset.sid;
       const sub = appData.subjects.find(s=>s.id===sid);
@@ -480,13 +477,13 @@
       currentQuizSubject = sub;
       document.getElementById('overlayShuffle').classList.add('active');
     }));
-    container.querySelectorAll('.btn-del-subj').forEach(b => b.addEventListener('click', (e)=>{
+    container.querySelectorAll('.btn-del-subj').forEach(b => b.addEventListener('click', async (e)=>{
       e.stopPropagation();
       if(confirm('Xoa mon hoc?')) {
         const sid = e.currentTarget.dataset.sid;
         appData.subjects = appData.subjects.filter(s=>s.id!==sid);
         appData.history = appData.history.filter(h=>h.subjectId!==sid);
-        saveData();
+        await saveDataToServer();
         renderReviewList();
       }
     }));
@@ -495,76 +492,49 @@
       const sid = e.currentTarget.dataset.sid;
       const sub = appData.subjects.find(s=>s.id===sid);
       if(!sub) return;
-      editingSubjectId = sid;
-      tempSubjectName = sub.name;
+      editingSubjectId = sid; tempSubjectName = sub.name;
       tempQuestions = sub.questions.map(q=>({question:q.question, answer:q.answer}));
       document.getElementById('inputSubjectName').value = tempSubjectName;
       document.getElementById('createSubjectTitle').textContent = 'Chinh sua - '+tempSubjectName;
-      rebuildQuestionBlocks();
-      document.getElementById('btnFinishCreate').textContent = 'Luu thay doi';
+      rebuildQuestionBlocks(); document.getElementById('btnFinishCreate').textContent = 'Luu thay doi';
       showScreen(screens.createQuestions);
     }));
     container.querySelectorAll('.btn-bxh').forEach(b => b.addEventListener('click', (e)=>{
       e.stopPropagation();
-      const sid = e.currentTarget.dataset.sid;
-      showBXH(sid);
+      showBXH(e.currentTarget.dataset.sid);
     }));
   }
 
-  // Bảng xếp hạng
   function showBXH(subjectId) {
     const sub = appData.subjects.find(s => s.id === subjectId);
     if (!sub) return;
-    // Lấy lịch sử của môn này
     const records = appData.history.filter(h => h.subjectId === subjectId);
-    // Nhóm theo user, lấy lần làm mới nhất (theo endTime)
     const userLatest = {};
     records.forEach(r => {
-      const u = r.user || 'An danh';
-      if (!userLatest[u] || r.endTime > userLatest[u].endTime) {
-        userLatest[u] = r;
-      }
+      if (!userLatest[r.user] || r.endTime > userLatest[r.user].endTime) userLatest[r.user] = r;
     });
-    // Chuyển thành mảng, sắp xếp giảm dần theo percentage
     const sorted = Object.values(userLatest).sort((a,b) => b.percentage - a.percentage);
     const top10 = sorted.slice(0, 10);
-    const listEl = document.getElementById('bxhList');
-    listEl.innerHTML = '';
-    if (top10.length === 0) {
-      listEl.innerHTML = '<li>Chua co ai lam bai.</li>';
-    } else {
-      top10.forEach((entry, idx) => {
-        listEl.innerHTML += `<li><span>${idx+1}. ${escapeHTML(entry.user)}</span> <strong>${entry.percentage}%</strong></li>`;
-      });
-    }
+    document.getElementById('bxhList').innerHTML = top10.length
+      ? top10.map((e,i) => `<li><span>${i+1}. ${escapeHTML(e.user)}</span> <strong>${e.percentage}%</strong></li>`).join('')
+      : '<li>Chua co ai lam bai.</li>';
     document.getElementById('overlayBXH').classList.add('active');
   }
-  document.getElementById('btnCloseBXH').addEventListener('click', ()=>{
-    document.getElementById('overlayBXH').classList.remove('active');
-  });
-
+  document.getElementById('btnCloseBXH').addEventListener('click', ()=> document.getElementById('overlayBXH').classList.remove('active'));
   document.getElementById('btnBackFromReview').addEventListener('click', ()=> showScreen(screens.main));
 
   // Tráo câu hỏi
-  document.getElementById('btnShuffleYes').addEventListener('click', ()=>{
-    document.getElementById('overlayShuffle').classList.remove('active');
-    startQuiz(true);
-  });
-  document.getElementById('btnShuffleNo').addEventListener('click', ()=>{
-    document.getElementById('overlayShuffle').classList.remove('active');
-    startQuiz(false);
-  });
+  document.getElementById('btnShuffleYes').addEventListener('click', ()=>{ document.getElementById('overlayShuffle').classList.remove('active'); startQuiz(true); });
+  document.getElementById('btnShuffleNo').addEventListener('click', ()=>{ document.getElementById('overlayShuffle').classList.remove('active'); startQuiz(false); });
 
   function startQuiz(shuffle) {
     if(!currentQuizSubject) return;
     const total = currentQuizSubject.questions.length;
     const indices = Array.from({length:total}, (_,i)=>i);
     if(shuffle) for(let i=indices.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [indices[i],indices[j]]=[indices[j],indices[i]]; }
-    currentQuizShuffled = indices;
-    quizStartTime = Date.now();
+    currentQuizShuffled = indices; quizStartTime = Date.now();
     document.getElementById('quizSubjectTitle').textContent = 'On tap - '+currentQuizSubject.name;
-    renderQuizQuestions();
-    showScreen(screens.quiz);
+    renderQuizQuestions(); showScreen(screens.quiz);
     if(quizTimer) clearInterval(quizTimer);
     const timerEl = document.getElementById('quizTimer');
     quizTimer = setInterval(()=>{
@@ -584,12 +554,11 @@
     });
     container.innerHTML = html;
   }
-
   document.getElementById('btnQuitQuiz').addEventListener('click', ()=>{
     if(confirm('Thoat khoi bai on tap?')) { clearInterval(quizTimer); quizTimer=null; currentQuizSubject=null; showScreen(screens.reviewList); }
   });
 
-  document.getElementById('btnSubmitQuiz').addEventListener('click', ()=>{
+  document.getElementById('btnSubmitQuiz').addEventListener('click', async ()=>{
     if(!currentQuizSubject) return;
     clearInterval(quizTimer); quizTimer=null;
     const endTime = Date.now();
@@ -599,37 +568,25 @@
       userAnswersMap.push({ origIdx: parseInt(ta.dataset.orig), dispIdx: parseInt(ta.dataset.disp), answer: ta.value });
     });
     userAnswersMap.sort((a,b)=>a.origIdx-b.origIdx);
-
-    let totalMatch = 0, totalChars = 0;
+    let totalMatch=0, totalChars=0;
     const detailed = [];
     userAnswersMap.forEach(u => {
       const correctAns = currentQuizSubject.questions[u.origIdx].answer;
       const { matchCount, totalChars: tc } = getMatchStats(u.answer, correctAns);
-      totalMatch += matchCount;
-      totalChars += tc;
-      const userHighlight = highlightUserAnswer(u.answer, correctAns);
+      totalMatch += matchCount; totalChars += tc;
       detailed.push({ origIdx: u.origIdx, dispIdx: u.dispIdx, userAnswer: u.answer, correctAnswer: correctAns,
-                      matchCount, totalChars: tc, userHighlightHTML: userHighlight });
+                      matchCount, totalChars: tc, userHighlightHTML: highlightUserAnswer(u.answer, correctAns) });
     });
     const percentage = totalChars > 0 ? Math.round((totalMatch / totalChars) * 10000) / 100 : 0;
-
-    const historyEntry = {
-      id: genId(),
-      subjectId: currentQuizSubject.id,
-      subjectName: currentQuizSubject.name,
-      answers: userAnswersMap.map(u=>u.answer),
-      shuffledOrder: currentQuizShuffled.slice(),
-      percentage,
-      startTime: quizStartTime,
-      endTime,
-      durationSec: duration,
-      detailedResults: detailed,
-      user: currentUser
+    const entry = {
+      id: genId(), subjectId: currentQuizSubject.id, subjectName: currentQuizSubject.name,
+      answers: userAnswersMap.map(u=>u.answer), shuffledOrder: currentQuizShuffled.slice(),
+      percentage, startTime: quizStartTime, endTime, durationSec: duration, detailedResults: detailed, user: currentUser
     };
-    appData.history.unshift(historyEntry);
+    appData.history.unshift(entry);
     if(appData.history.length>200) appData.history = appData.history.slice(0,200);
-    saveData();
-    showResultScreen(historyEntry);
+    await saveDataToServer();
+    showResultScreen(entry);
     currentQuizSubject = null;
   });
 
@@ -637,7 +594,6 @@
     document.getElementById('resultPercentage').textContent = entry.percentage+'%';
     const cls = entry.percentage>=80?'high':entry.percentage>=50?'medium':'low';
     document.getElementById('resultPercentage').className = 'result-summary '+cls;
-    const detailsDiv = document.getElementById('resultDetails');
     let html = '';
     entry.detailedResults.forEach(dr => {
       html += `<div class="answer-review">
@@ -646,17 +602,17 @@
         <div class="system-answer-box">${escapeHTML(dr.correctAnswer)}</div>
       </div>`;
     });
-    detailsDiv.innerHTML = html;
+    document.getElementById('resultDetails').innerHTML = html;
     showScreen(screens.result);
   }
   document.getElementById('btnBackFromResult').addEventListener('click', ()=> showScreen(screens.main));
 
-  // Lịch sử (của cá nhân)
+  // ========== Lịch sử (cá nhân) ==========
   function renderHistoryList() {
     const container = document.getElementById('historyList');
     const myHistory = appData.history.filter(h => h.user === currentUser);
-    if(myHistory.length===0){
-      container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Chua co lich su lam bai.</p>';
+    if(!myHistory.length) {
+      container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Chua co lich su.</p>';
       return;
     }
     let html = '';
@@ -675,12 +631,12 @@
       const entry = appData.history.find(h=>h.id===hid);
       if(entry) showHistoryDetail(entry);
     }));
-    container.querySelectorAll('.btn-hist-del').forEach(b => b.addEventListener('click', function(e){
+    container.querySelectorAll('.btn-hist-del').forEach(b => b.addEventListener('click', async function(e){
       e.stopPropagation();
       const hid = this.dataset.hid;
-      if(confirm('Xoa muc lich su?')){
+      if(confirm('Xoa muc lich su?')) {
         appData.history = appData.history.filter(h=>h.id!==hid);
-        saveData();
+        await saveDataToServer();
         renderHistoryList();
       }
     }));
@@ -688,14 +644,13 @@
   document.getElementById('btnBackFromHistory').addEventListener('click', ()=> showScreen(screens.main));
 
   function showHistoryDetail(entry) {
-    let totalMatch = 0, totalChars = 0;
-    const detailed = entry.detailedResults && entry.detailedResults.length ? entry.detailedResults : null;
+    let totalMatch=0, totalChars=0;
+    const detailed = entry.detailedResults;
     let html = '';
     if(detailed) {
       detailed.forEach(dr => {
         let userHighlight = dr.userHighlightHTML;
-        let match = dr.matchCount;
-        let chars = dr.totalChars;
+        let match = dr.matchCount; let chars = dr.totalChars;
         if(!userHighlight) {
           userHighlight = highlightUserAnswer(dr.userAnswer, dr.correctAnswer);
           const stats = getMatchStats(dr.userAnswer, dr.correctAnswer);
@@ -713,10 +668,10 @@
       if(sub) {
         entry.shuffledOrder.forEach((origIdx, dispIdx) => {
           const userAns = entry.answers[origIdx] || '';
-          const correctAns = sub.questions[origIdx] ? sub.questions[origIdx].answer : '';
+          const correctAns = sub.questions[origIdx]?.answer || '';
           const userHighlight = highlightUserAnswer(userAns, correctAns);
-          const { matchCount, totalChars: tc } = getMatchStats(userAns, correctAns);
-          totalMatch += matchCount; totalChars += tc;
+          const stats = getMatchStats(userAns, correctAns);
+          totalMatch += stats.matchCount; totalChars += stats.totalChars;
           html += `<div class="answer-review">
             <div class="q-label">Cau ${dispIdx+1}</div>
             <div class="user-answer-box">${userHighlight}</div>
@@ -733,10 +688,7 @@
     document.getElementById('histDetailAnswers').innerHTML = html || '<p>Khong co du lieu.</p>';
     showScreen(screens.historyDetail);
   }
-  document.getElementById('btnBackFromHistDetail').addEventListener('click', ()=>{
-    renderHistoryList();
-    showScreen(screens.history);
-  });
+  document.getElementById('btnBackFromHistDetail').addEventListener('click', ()=>{ renderHistoryList(); showScreen(screens.history); });
 
 })();
 </script>
