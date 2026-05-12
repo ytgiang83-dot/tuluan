@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>On tap Tu luan</title>
+  <style>
+    :root {
+      --bg: #f3f2ef; --surface: #ffffff; --border: #d0d0d0; --text: #1a1a1a;
+      --text-secondary: #555; --accent: #1a1a1a; --correct: #1e7b1e;
+      --incorrect: #b71c1c; --hover: #e8e8e8; --shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+      display: flex; justify-content: center; align-items: flex-start;
+      padding: 20px 12px; line-height: 1.5;
+    }
+    .app-container {
+      width: 100%; max-width: 700px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 24px 18px 20px; box-shadow: var(--shadow); min-height: 380px;
+    }
+    h1, h2, h3 { font-weight: 600; color: var(--text); margin-bottom: 14px; }
+    h1 { font-size: 1.3rem; text-align: center; margin-bottom: 20px; }
+    h2 { font-size: 1.1rem; } h3 { font-size: 0.95rem; }
+    .screen { display: none; } .screen.active { display: block; }
+    button {
+      display: inline-block; padding: 9px 16px; font-size: 0.88rem;
+      font-family: inherit; cursor: pointer; border: 1px solid var(--border);
+      background: #fafafa; color: var(--text); border-radius: 3px;
+      transition: background 0.2s; white-space: nowrap; letter-spacing: 0.02em;
+    }
+    button:hover { background: var(--hover); }
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button.primary:hover { background: #333; }
+    button.danger { border-color: #b71c1c; color: #b71c1c; }
+    button.danger:hover { background: #fce4e4; }
+    button.small { padding: 5px 12px; font-size: 0.8rem; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    input[type="text"], textarea {
+      width: 100%; padding: 10px 12px; font-size: 0.9rem; font-family: inherit;
+      border: 1px solid var(--border); border-radius: 3px; background: #fafafa;
+      color: var(--text); resize: vertical; line-height: 1.5; transition: border 0.15s;
+    }
+    input:focus, textarea:focus { outline: none; border-color: #555; background: #fff; }
+    textarea { min-height: 70px; }
+    textarea.quiz-textarea { min-height: 110px; }
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .btn-group.end { justify-content: flex-end; } .btn-group.center { justify-content: center; }
+    .card {
+      border: 1px solid var(--border); border-radius: 4px; padding: 14px;
+      margin-bottom: 10px; background: #fafafa; display: flex;
+      justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .card .info { flex:1; min-width: 130px; }
+    .card .info .title { font-weight: 600; font-size: 0.95rem; }
+    .card .info .sub { font-size: 0.8rem; color: var(--text-secondary); }
+    .card .info .creator { font-size: 0.7rem; color: #888; font-style: italic; }
+    .card .actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+    .question-block {
+      border: 1px solid var(--border); border-radius: 4px; padding: 14px;
+      margin-bottom: 14px; background: #fdfdfd;
+    }
+    .question-block .q-label { font-weight: 600; margin: 6px 0 4px; font-size: 0.9rem; }
+    .question-block textarea { margin-top: 4px; }
+    .result-summary {
+      text-align: center; padding: 12px; border-radius: 4px;
+      font-weight: 600; font-size: 1.2rem; margin: 10px 0 16px;
+    }
+    .result-summary.high { background: #e6f3e6; color: #1e7b1e; }
+    .result-summary.medium { background: #fff7e0; color: #b85e00; }
+    .result-summary.low { background: #fce4e4; color: #b71c1c; }
+    .answer-review {
+      border: 1px solid var(--border); border-radius: 4px; padding: 12px;
+      margin-bottom: 14px; background: #fafafa;
+    }
+    .user-answer-box {
+      background: #fff; border: 1px solid #eee; padding: 10px; border-radius: 3px;
+      white-space: pre-wrap; word-break: break-word; margin: 6px 0; font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .system-answer-box {
+      background: #fff; border: 1px solid #eee; padding: 10px; border-radius: 3px;
+      font-size: 0.9rem; line-height: 1.6; word-break: break-word; white-space: pre-wrap;
+    }
+    .user-answer-box span.char-correct { color: #1e7b1e; font-weight: 500; }
+    .user-answer-box span.char-incorrect { color: #b71c1c; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+    .user-answer-box span.char-space { color: #888; }
+    .overlay {
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.4); z-index:100; display:none;
+      align-items:center; justify-content:center;
+    }
+    .overlay.active { display:flex; }
+    .overlay .dialog {
+      background:#fff; border-radius:4px; padding:24px 20px; border:1px solid var(--border);
+      box-shadow:0 4px 16px rgba(0,0,0,0.15); max-width:380px; width:90%; text-align:center;
+    }
+    .overlay .dialog p { margin-bottom:18px; font-size:0.95rem; }
+    .timer { font-size:0.85rem; color:var(--text-secondary); text-align:right; margin-bottom:8px; }
+    .user-indicator { font-size:0.75rem; color:#888; text-align:center; margin-top:18px; }
+    hr { border:none; border-top:1px solid var(--border); margin:16px 0; }
+    @media (max-width:480px) {
+      .app-container { padding:14px 10px; }
+      button { padding:8px 14px; font-size:0.85rem; }
+      textarea.quiz-textarea { min-height: 90px; }
+      .card .actions { justify-content: flex-end; }
+    }
+    .bxh-list { list-style: none; padding: 0; text-align: left; }
+    .bxh-list li { padding: 6px 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+    .bxh-list li:last-child { border-bottom: none; }
+  </style>
+</head>
+<body>
+<div class="app-container" id="appContainer">
+  <!-- Màn hình đăng ký tên -->
+  <div class="screen active" id="screenRegister">
+    <h2>Dang nhap</h2>
+    <p style="margin-bottom:16px;">Nhap ten cua ban de bat dau</p>
+    <input type="text" id="inputUsername" placeholder="Ten cua ban...">
+    <div class="btn-group center" style="margin-top:16px;">
+      <button class="primary" id="btnRegister">Vao hoc</button>
+    </div>
+  </div>
+
+  <!-- Màn hình chính -->
+  <div class="screen" id="screenMain">
+    <h1>ON TAP TU LUAN</h1>
+    <div class="btn-group center" style="flex-direction:column;align-items:stretch;gap:12px;">
+      <button class="primary" id="btnGoReview">On tap</button>
+      <button id="btnGoCreate">Tao tu luan</button>
+      <button id="btnGoHistory">Lich su lam bai</button>
+    </div>
+    <div class="user-indicator" id="userIndicator"></div>
+  </div>
+
+  <div class="screen" id="screenCreateName">
+    <h2>Tao mon hoc moi</h2>
+    <input type="text" id="inputSubjectName" placeholder="Nhap ten mon hoc...">
+    <div class="btn-group end">
+      <button id="btnCancelCreate">Huy</button>
+      <button class="primary" id="btnNextToQuestions">Tiep tuc</button>
+    </div>
+  </div>
+
+  <div class="screen" id="screenCreateQuestions">
+    <h2 id="createSubjectTitle">Them cau hoi</h2>
+    <div id="questionsContainer"></div>
+    <div class="btn-group"><button id="btnAddQuestion">Them cau hoi</button></div>
+    <hr>
+    <div class="btn-group end">
+      <button id="btnBackToName">Quay lai</button>
+      <button class="primary" id="btnFinishCreate">Hoan thanh</button>
+    </div>
+  </div>
+
+  <div class="screen" id="screenReviewList">
+    <h2>Chon mon de on tap</h2>
+    <div id="reviewSubjectList"></div>
+    <div class="btn-group" style="margin-top:12px;"><button id="btnBackFromReview">Quay lai</button></div>
+  </div>
+
+  <div class="screen" id="screenQuiz">
+    <h2 id="quizSubjectTitle">On tap</h2>
+    <div class="timer" id="quizTimer">Thoi gian: 00:00:00</div>
+    <div id="quizQuestionsContainer"></div>
+    <div class="btn-group end">
+      <button id="btnQuitQuiz">Thoat</button>
+      <button class="primary" id="btnSubmitQuiz">Nop bai</button>
+    </div>
+  </div>
+
+  <div class="screen" id="screenResult">
+    <h2>Ket qua</h2>
+    <div class="result-summary" id="resultPercentage">0%</div>
+    <div id="resultDetails"></div>
+    <div class="btn-group center" style="margin-top:16px;"><button id="btnBackFromResult">Quay lai</button></div>
+  </div>
+
+  <div class="screen" id="screenHistory">
+    <h2>Lich su lam bai</h2>
+    <div id="historyList"></div>
+    <div class="btn-group" style="margin-top:12px;"><button id="btnBackFromHistory">Quay lai</button></div>
+  </div>
+
+  <div class="screen" id="screenHistoryDetail">
+    <h2>Chi tiet lich su</h2>
+    <div class="result-summary" id="histDetailPercentage">0%</div>
+    <div id="histDetailInfo" style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;"></div>
+    <div id="histDetailAnswers"></div>
+    <div class="btn-group center" style="margin-top:16px;"><button id="btnBackFromHistDetail">Quay lai</button></div>
+  </div>
+
+  <!-- Overlay cho hộp thoại tráo câu hỏi -->
+  <div class="overlay" id="overlayShuffle">
+    <div class="dialog">
+      <p>Ban co muon trao cau hoi khong?</p>
+      <div class="btn-group center">
+        <button id="btnShuffleYes" class="primary">Co</button>
+        <button id="btnShuffleNo">Khong</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay cho BXH -->
+  <div class="overlay" id="overlayBXH">
+    <div class="dialog" style="max-width: 350px; text-align: left;">
+      <h3 style="text-align:center;">Bang xep hang</h3>
+      <ul class="bxh-list" id="bxhList"></ul>
+      <div class="btn-group center" style="margin-top:12px;">
+        <button id="btnCloseBXH">Dong</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const STORAGE_KEY = 'study_app_shared_v2';
+  const USER_KEY = 'study_current_user';
+  let appData = { subjects: [], history: [] };
+  let currentUser = '';
+
+  function loadUser() {
+    const saved = localStorage.getItem(USER_KEY);
+    if (saved) currentUser = saved.trim();
+    else currentUser = '';
+  }
+  function saveUser() {
+    localStorage.setItem(USER_KEY, currentUser);
+  }
+
+  function saveData() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); } catch(e) { alert('Khong luu duoc du lieu.'); }
+  }
+  function loadData() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) {
+        const d = JSON.parse(raw);
+        appData.subjects = d.subjects || [];
+        appData.history = d.history || [];
+      } else {
+        appData = { subjects:[], history:[] };
+      }
+    } catch(e) { appData = { subjects:[], history:[] }; }
+  }
+
+  function escapeHTML(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function genId() { return 'id_'+Date.now()+'_'+Math.random().toString(36).substr(2,8); }
+  function formatDuration(sec) {
+    const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = Math.floor(sec%60);
+    let p = []; if(h>0) p.push(h+' gio'); if(m>0) p.push(m+' phut'); p.push(s+' giay'); return p.join(' ');
+  }
+  function formatTime(ts) {
+    const d = new Date(ts);
+    return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2)+' '+
+           ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();
+  }
+
+  // LCS
+  function findLCSIndices(userClean, correctClean) {
+    const n = userClean.length, m = correctClean.length;
+    const dp = Array.from({length: n+1}, () => new Array(m+1).fill(0));
+    for (let i=1; i<=n; i++) for (let j=1; j<=m; j++) {
+      if (userClean[i-1] === correctClean[j-1]) dp[i][j] = dp[i-1][j-1] + 1;
+      else dp[i][j] = Math.max(dp[i-1][j], dp[i][j-1]);
+    }
+    const userIndices = new Set();
+    let i = n, j = m;
+    while (i > 0 && j > 0) {
+      if (userClean[i-1] === correctClean[j-1]) { userIndices.add(i-1); i--; j--; }
+      else if (dp[i-1][j] > dp[i][j-1]) i--; else j--;
+    }
+    return { userIndices, length: dp[n][m] };
+  }
+
+  function highlightUserAnswer(userAnswer, correctAnswer) {
+    const userClean = userAnswer.replace(/\s+/g, '');
+    const correctClean = correctAnswer.replace(/\s+/g, '');
+    const { userIndices } = findLCSIndices(userClean, correctClean);
+    let html = '';
+    let userCleanIdx = 0;
+    for (let i = 0; i < userAnswer.length; i++) {
+      const ch = userAnswer[i];
+      if (ch === ' ' || ch === '\n' || ch === '\t' || ch === '\r') {
+        html += '<span class="char-space">' + escapeHTML(ch) + '</span>';
+      } else {
+        if (userIndices.has(userCleanIdx)) html += '<span class="char-correct">' + escapeHTML(ch) + '</span>';
+        else html += '<span class="char-incorrect">' + escapeHTML(ch) + '</span>';
+        userCleanIdx++;
+      }
+    }
+    return html;
+  }
+
+  function getMatchStats(userAnswer, correctAnswer) {
+    const userClean = userAnswer.replace(/\s+/g, '');
+    const correctClean = correctAnswer.replace(/\s+/g, '');
+    const { length } = findLCSIndices(userClean, correctClean);
+    return { matchCount: length, totalChars: correctClean.length };
+  }
+
+  const screens = {
+    register:'screenRegister', main:'screenMain', createName:'screenCreateName',
+    createQuestions:'screenCreateQuestions', reviewList:'screenReviewList',
+    quiz:'screenQuiz', result:'screenResult', history:'screenHistory',
+    historyDetail:'screenHistoryDetail'
+  };
+  function showScreen(id) {
+    Object.values(screens).forEach(s => {
+      const el = document.getElementById(s); if(el) el.classList.remove('active');
+    });
+    const target = document.getElementById(id);
+    if(target) target.classList.add('active');
+    window.scrollTo({top:0,behavior:'instant'});
+  }
+
+  // Biến tạm
+  let tempSubjectName = '';
+  let tempQuestions = [];
+  let editingSubjectId = null;
+  let currentQuizSubject = null;
+  let currentQuizShuffled = [];
+  let quizStartTime = null;
+  let quizTimer = null;
+
+  // ========== ĐĂNG KÝ / ĐĂNG NHẬP ==========
+  document.getElementById('btnRegister').addEventListener('click', () => {
+    const name = document.getElementById('inputUsername').value.trim();
+    if (!name) { alert('Vui long nhap ten.'); return; }
+    currentUser = name;
+    saveUser();
+    updateUserIndicator();
+    showScreen('screenMain');
+  });
+
+  function updateUserIndicator() {
+    const el = document.getElementById('userIndicator');
+    if (el) el.textContent = currentUser ? 'Nguoi dung: ' + currentUser : '';
+  }
+
+  // Kiểm tra khi khởi động
+  loadUser();
+  loadData();
+  if (currentUser) {
+    updateUserIndicator();
+    showScreen('screenMain');
+  } else {
+    showScreen('screenRegister');
+  }
+
+  // Các nút menu chính
+  document.getElementById('btnGoCreate').addEventListener('click', ()=>{
+    tempSubjectName = ''; tempQuestions = []; editingSubjectId = null;
+    document.getElementById('inputSubjectName').value = '';
+    document.getElementById('questionsContainer').innerHTML = '';
+    document.getElementById('btnFinishCreate').textContent = 'Hoan thanh';
+    showScreen(screens.createName);
+  });
+  document.getElementById('btnGoReview').addEventListener('click', ()=>{
+    renderReviewList();
+    showScreen(screens.reviewList);
+  });
+  document.getElementById('btnGoHistory').addEventListener('click', ()=>{
+    renderHistoryList();
+    showScreen(screens.history);
+  });
+
+  // Tạo tự luận
+  document.getElementById('btnCancelCreate').addEventListener('click', ()=> showScreen(screens.main));
+  document.getElementById('btnNextToQuestions').addEventListener('click', ()=>{
+    const name = document.getElementById('inputSubjectName').value.trim();
+    if(!name) { alert('Nhap ten mon hoc.'); return; }
+    tempSubjectName = name;
+    document.getElementById('createSubjectTitle').textContent = editingSubjectId ? 'Chinh sua - '+name : 'Them cau hoi - '+name;
+    if(editingSubjectId) {
+      const sub = appData.subjects.find(s=>s.id===editingSubjectId);
+      tempQuestions = sub ? sub.questions.map(q=>({question:q.question, answer:q.answer})) : [];
+    } else {
+      tempQuestions = [];
+    }
+    rebuildQuestionBlocks();
+    showScreen(screens.createQuestions);
+  });
+
+  function rebuildQuestionBlocks() {
+    const container = document.getElementById('questionsContainer');
+    container.innerHTML = '';
+    tempQuestions.forEach((q, idx) => {
+      const block = document.createElement('div');
+      block.className = 'question-block';
+      block.innerHTML = `
+        <div class="q-label">Cau ${idx+1}</div>
+        <label>Cau hoi:</label>
+        <textarea class="q-question" data-idx="${idx}" placeholder="Nhap noi dung cau hoi...">${escapeHTML(q.question)}</textarea>
+        <label>Dap an:</label>
+        <textarea class="q-answer" data-idx="${idx}" placeholder="Nhap dap an...">${escapeHTML(q.answer)}</textarea>
+        <button class="small danger btn-remove-q" data-idx="${idx}" style="margin-top:6px;">Xoa cau nay</button>
+      `;
+      container.appendChild(block);
+      block.querySelector('.q-question').addEventListener('input', e => { tempQuestions[idx].question = e.target.value; });
+      block.querySelector('.q-answer').addEventListener('input', e => { tempQuestions[idx].answer = e.target.value; });
+      block.querySelector('.btn-remove-q').addEventListener('click', ()=>{
+        if(tempQuestions.length<=1) { alert('Can it nhat 1 cau.'); return; }
+        tempQuestions.splice(idx,1); rebuildQuestionBlocks();
+      });
+    });
+  }
+  document.getElementById('btnAddQuestion').addEventListener('click', ()=>{
+    tempQuestions.push({question:'', answer:''}); rebuildQuestionBlocks();
+  });
+  document.getElementById('btnBackToName').addEventListener('click', ()=>{
+    document.getElementById('inputSubjectName').value = tempSubjectName;
+    showScreen(screens.createName);
+  });
+  document.getElementById('btnFinishCreate').addEventListener('click', ()=>{
+    document.querySelectorAll('#questionsContainer .q-question').forEach(ta => {
+      const idx = parseInt(ta.dataset.idx); if(idx>=0 && idx<tempQuestions.length) tempQuestions[idx].question = ta.value;
+    });
+    document.querySelectorAll('#questionsContainer .q-answer').forEach(ta => {
+      const idx = parseInt(ta.dataset.idx); if(idx>=0 && idx<tempQuestions.length) tempQuestions[idx].answer = ta.value;
+    });
+    const valid = tempQuestions.filter(q => q.question.trim()!=='' || q.answer.trim()!=='');
+    if(valid.length===0) { alert('Vui long nhap it nhat 1 cau hoi hoac dap an.'); return; }
+    if(editingSubjectId) {
+      const sub = appData.subjects.find(s=>s.id===editingSubjectId);
+      if(sub) {
+        sub.name = tempSubjectName;
+        sub.questions = tempQuestions.map((q,i)=>({id:i, question:q.question, answer:q.answer}));
+      }
+    } else {
+      appData.subjects.push({
+        id: genId(),
+        name: tempSubjectName,
+        questions: tempQuestions.map((q,i)=>({id:i, question:q.question, answer:q.answer})),
+        createdAt: Date.now(),
+        creator: currentUser
+      });
+    }
+    saveData();
+    alert('Da luu mon hoc.');
+    editingSubjectId = null;
+    showScreen(screens.main);
+  });
+
+  // Danh sách môn ôn tập
+  function renderReviewList() {
+    const container = document.getElementById('reviewSubjectList');
+    if(appData.subjects.length===0) {
+      container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Chua co mon hoc nao.</p>';
+      return;
+    }
+    let html = '';
+    appData.subjects.forEach(sub => {
+      const isCreator = sub.creator === currentUser;
+      html += `<div class="card">
+        <div class="info">
+          <div class="creator">Tao boi: ${escapeHTML(sub.creator || 'An danh')}</div>
+          <div class="title">${escapeHTML(sub.name)}</div>
+          <div class="sub">${sub.questions.length} cau</div>
+        </div>
+        <div class="actions">
+          ${isCreator ? `<button class="small danger btn-del-subj" data-sid="${sub.id}">Xoa</button>` : ''}
+          <button class="small btn-bxh" data-sid="${sub.id}">BXH</button>
+          ${isCreator ? `<button class="small btn-edit-subj" data-sid="${sub.id}">Chinh sua</button>` : ''}
+          <button class="small primary btn-start-review" data-sid="${sub.id}">On tap</button>
+        </div>
+      </div>`;
+    });
+    container.innerHTML = html;
+
+    // Gắn sự kiện
+    container.querySelectorAll('.btn-start-review').forEach(b => b.addEventListener('click', (e)=>{
+      const sid = e.currentTarget.dataset.sid;
+      const sub = appData.subjects.find(s=>s.id===sid);
+      if(!sub || sub.questions.length===0) { alert('Mon hoc khong co cau hoi.'); return; }
+      currentQuizSubject = sub;
+      document.getElementById('overlayShuffle').classList.add('active');
+    }));
+    container.querySelectorAll('.btn-del-subj').forEach(b => b.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      if(confirm('Xoa mon hoc?')) {
+        const sid = e.currentTarget.dataset.sid;
+        appData.subjects = appData.subjects.filter(s=>s.id!==sid);
+        appData.history = appData.history.filter(h=>h.subjectId!==sid);
+        saveData();
+        renderReviewList();
+      }
+    }));
+    container.querySelectorAll('.btn-edit-subj').forEach(b => b.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const sid = e.currentTarget.dataset.sid;
+      const sub = appData.subjects.find(s=>s.id===sid);
+      if(!sub) return;
+      editingSubjectId = sid;
+      tempSubjectName = sub.name;
+      tempQuestions = sub.questions.map(q=>({question:q.question, answer:q.answer}));
+      document.getElementById('inputSubjectName').value = tempSubjectName;
+      document.getElementById('createSubjectTitle').textContent = 'Chinh sua - '+tempSubjectName;
+      rebuildQuestionBlocks();
+      document.getElementById('btnFinishCreate').textContent = 'Luu thay doi';
+      showScreen(screens.createQuestions);
+    }));
+    container.querySelectorAll('.btn-bxh').forEach(b => b.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const sid = e.currentTarget.dataset.sid;
+      showBXH(sid);
+    }));
+  }
+
+  // Bảng xếp hạng
+  function showBXH(subjectId) {
+    const sub = appData.subjects.find(s => s.id === subjectId);
+    if (!sub) return;
+    // Lấy lịch sử của môn này
+    const records = appData.history.filter(h => h.subjectId === subjectId);
+    // Nhóm theo user, lấy lần làm mới nhất (theo endTime)
+    const userLatest = {};
+    records.forEach(r => {
+      const u = r.user || 'An danh';
+      if (!userLatest[u] || r.endTime > userLatest[u].endTime) {
+        userLatest[u] = r;
+      }
+    });
+    // Chuyển thành mảng, sắp xếp giảm dần theo percentage
+    const sorted = Object.values(userLatest).sort((a,b) => b.percentage - a.percentage);
+    const top10 = sorted.slice(0, 10);
+    const listEl = document.getElementById('bxhList');
+    listEl.innerHTML = '';
+    if (top10.length === 0) {
+      listEl.innerHTML = '<li>Chua co ai lam bai.</li>';
+    } else {
+      top10.forEach((entry, idx) => {
+        listEl.innerHTML += `<li><span>${idx+1}. ${escapeHTML(entry.user)}</span> <strong>${entry.percentage}%</strong></li>`;
+      });
+    }
+    document.getElementById('overlayBXH').classList.add('active');
+  }
+  document.getElementById('btnCloseBXH').addEventListener('click', ()=>{
+    document.getElementById('overlayBXH').classList.remove('active');
+  });
+
+  document.getElementById('btnBackFromReview').addEventListener('click', ()=> showScreen(screens.main));
+
+  // Tráo câu hỏi
+  document.getElementById('btnShuffleYes').addEventListener('click', ()=>{
+    document.getElementById('overlayShuffle').classList.remove('active');
+    startQuiz(true);
+  });
+  document.getElementById('btnShuffleNo').addEventListener('click', ()=>{
+    document.getElementById('overlayShuffle').classList.remove('active');
+    startQuiz(false);
+  });
+
+  function startQuiz(shuffle) {
+    if(!currentQuizSubject) return;
+    const total = currentQuizSubject.questions.length;
+    const indices = Array.from({length:total}, (_,i)=>i);
+    if(shuffle) for(let i=indices.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [indices[i],indices[j]]=[indices[j],indices[i]]; }
+    currentQuizShuffled = indices;
+    quizStartTime = Date.now();
+    document.getElementById('quizSubjectTitle').textContent = 'On tap - '+currentQuizSubject.name;
+    renderQuizQuestions();
+    showScreen(screens.quiz);
+    if(quizTimer) clearInterval(quizTimer);
+    const timerEl = document.getElementById('quizTimer');
+    quizTimer = setInterval(()=>{
+      if(!quizStartTime) return;
+      const sec = Math.floor((Date.now()-quizStartTime)/1000);
+      timerEl.textContent = 'Thoi gian: '+('0'+Math.floor(sec/3600)).slice(-2)+':'+('0'+Math.floor((sec%3600)/60)).slice(-2)+':'+('0'+sec%60).slice(-2);
+    },300);
+  }
+
+  function renderQuizQuestions() {
+    const container = document.getElementById('quizQuestionsContainer');
+    let html = '';
+    currentQuizShuffled.forEach((origIdx, dispIdx) => {
+      const q = currentQuizSubject.questions[origIdx];
+      html += `<div class="question-block"><div class="q-label">Cau ${dispIdx+1}</div><div style="white-space:pre-wrap; margin-bottom:8px;">${escapeHTML(q.question)}</div>
+        <textarea class="quiz-user-answer quiz-textarea" data-orig="${origIdx}" data-disp="${dispIdx}" placeholder="Nhap cau tra loi..."></textarea></div>`;
+    });
+    container.innerHTML = html;
+  }
+
+  document.getElementById('btnQuitQuiz').addEventListener('click', ()=>{
+    if(confirm('Thoat khoi bai on tap?')) { clearInterval(quizTimer); quizTimer=null; currentQuizSubject=null; showScreen(screens.reviewList); }
+  });
+
+  document.getElementById('btnSubmitQuiz').addEventListener('click', ()=>{
+    if(!currentQuizSubject) return;
+    clearInterval(quizTimer); quizTimer=null;
+    const endTime = Date.now();
+    const duration = Math.floor((endTime-quizStartTime)/1000);
+    const userAnswersMap = [];
+    document.querySelectorAll('#quizQuestionsContainer .quiz-user-answer').forEach(ta => {
+      userAnswersMap.push({ origIdx: parseInt(ta.dataset.orig), dispIdx: parseInt(ta.dataset.disp), answer: ta.value });
+    });
+    userAnswersMap.sort((a,b)=>a.origIdx-b.origIdx);
+
+    let totalMatch = 0, totalChars = 0;
+    const detailed = [];
+    userAnswersMap.forEach(u => {
+      const correctAns = currentQuizSubject.questions[u.origIdx].answer;
+      const { matchCount, totalChars: tc } = getMatchStats(u.answer, correctAns);
+      totalMatch += matchCount;
+      totalChars += tc;
+      const userHighlight = highlightUserAnswer(u.answer, correctAns);
+      detailed.push({ origIdx: u.origIdx, dispIdx: u.dispIdx, userAnswer: u.answer, correctAnswer: correctAns,
+                      matchCount, totalChars: tc, userHighlightHTML: userHighlight });
+    });
+    const percentage = totalChars > 0 ? Math.round((totalMatch / totalChars) * 10000) / 100 : 0;
+
+    const historyEntry = {
+      id: genId(),
+      subjectId: currentQuizSubject.id,
+      subjectName: currentQuizSubject.name,
+      answers: userAnswersMap.map(u=>u.answer),
+      shuffledOrder: currentQuizShuffled.slice(),
+      percentage,
+      startTime: quizStartTime,
+      endTime,
+      durationSec: duration,
+      detailedResults: detailed,
+      user: currentUser
+    };
+    appData.history.unshift(historyEntry);
+    if(appData.history.length>200) appData.history = appData.history.slice(0,200);
+    saveData();
+    showResultScreen(historyEntry);
+    currentQuizSubject = null;
+  });
+
+  function showResultScreen(entry) {
+    document.getElementById('resultPercentage').textContent = entry.percentage+'%';
+    const cls = entry.percentage>=80?'high':entry.percentage>=50?'medium':'low';
+    document.getElementById('resultPercentage').className = 'result-summary '+cls;
+    const detailsDiv = document.getElementById('resultDetails');
+    let html = '';
+    entry.detailedResults.forEach(dr => {
+      html += `<div class="answer-review">
+        <div class="q-label">Cau ${dr.dispIdx+1}</div>
+        <div class="user-answer-box">${dr.userHighlightHTML || escapeHTML(dr.userAnswer)}</div>
+        <div class="system-answer-box">${escapeHTML(dr.correctAnswer)}</div>
+      </div>`;
+    });
+    detailsDiv.innerHTML = html;
+    showScreen(screens.result);
+  }
+  document.getElementById('btnBackFromResult').addEventListener('click', ()=> showScreen(screens.main));
+
+  // Lịch sử (của cá nhân)
+  function renderHistoryList() {
+    const container = document.getElementById('historyList');
+    const myHistory = appData.history.filter(h => h.user === currentUser);
+    if(myHistory.length===0){
+      container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Chua co lich su.</p>';
+      return;
+    }
+    let html = '';
+    myHistory.forEach(h => {
+      html += `<div class="card" style="cursor:pointer;" data-hid="${h.id}">
+        <div class="info">
+          <div class="title">${escapeHTML(h.subjectName)}</div>
+          <div class="sub">${h.percentage}% - ${formatTime(h.startTime)} - ${formatDuration(h.durationSec)}</div>
+        </div>
+        <div class="actions"><button class="small btn-hist-del" data-hid="${h.id}">Xoa</button></div>
+      </div>`;
+    });
+    container.innerHTML = html;
+    container.querySelectorAll('.card').forEach(card => card.addEventListener('click', function(){
+      const hid = this.dataset.hid;
+      const entry = appData.history.find(h=>h.id===hid);
+      if(entry) showHistoryDetail(entry);
+    }));
+    container.querySelectorAll('.btn-hist-del').forEach(b => b.addEventListener('click', function(e){
+      e.stopPropagation();
+      const hid = this.dataset.hid;
+      if(confirm('Xoa muc lich su?')){
+        appData.history = appData.history.filter(h=>h.id!==hid);
+        saveData();
+        renderHistoryList();
+      }
+    }));
+  }
+  document.getElementById('btnBackFromHistory').addEventListener('click', ()=> showScreen(screens.main));
+
+  function showHistoryDetail(entry) {
+    let totalMatch = 0, totalChars = 0;
+    const detailed = entry.detailedResults && entry.detailedResults.length ? entry.detailedResults : null;
+    let html = '';
+    if(detailed) {
+      detailed.forEach(dr => {
+        let userHighlight = dr.userHighlightHTML;
+        let match = dr.matchCount;
+        let chars = dr.totalChars;
+        if(!userHighlight) {
+          userHighlight = highlightUserAnswer(dr.userAnswer, dr.correctAnswer);
+          const stats = getMatchStats(dr.userAnswer, dr.correctAnswer);
+          match = stats.matchCount; chars = stats.totalChars;
+        }
+        totalMatch += match; totalChars += chars;
+        html += `<div class="answer-review">
+          <div class="q-label">Cau ${dr.dispIdx+1}</div>
+          <div class="user-answer-box">${userHighlight}</div>
+          <div class="system-answer-box">${escapeHTML(dr.correctAnswer)}</div>
+        </div>`;
+      });
+    } else if(entry.shuffledOrder && entry.answers) {
+      const sub = appData.subjects.find(s=>s.id===entry.subjectId);
+      if(sub) {
+        entry.shuffledOrder.forEach((origIdx, dispIdx) => {
+          const userAns = entry.answers[origIdx] || '';
+          const correctAns = sub.questions[origIdx] ? sub.questions[origIdx].answer : '';
+          const userHighlight = highlightUserAnswer(userAns, correctAns);
+          const { matchCount, totalChars: tc } = getMatchStats(userAns, correctAns);
+          totalMatch += matchCount; totalChars += tc;
+          html += `<div class="answer-review">
+            <div class="q-label">Cau ${dispIdx+1}</div>
+            <div class="user-answer-box">${userHighlight}</div>
+            <div class="system-answer-box">${escapeHTML(correctAns)}</div>
+          </div>`;
+        });
+      } else { html = '<p>Mon hoc goc da bi xoa.</p>'; }
+    }
+    const percentage = totalChars > 0 ? Math.round((totalMatch / totalChars) * 10000) / 100 : 0;
+    document.getElementById('histDetailPercentage').textContent = percentage+'%';
+    const cls = percentage>=80?'high':percentage>=50?'medium':'low';
+    document.getElementById('histDetailPercentage').className = 'result-summary '+cls;
+    document.getElementById('histDetailInfo').textContent = 'Thoi gian: '+formatTime(entry.startTime)+' - '+formatTime(entry.endTime)+' | '+formatDuration(entry.durationSec);
+    document.getElementById('histDetailAnswers').innerHTML = html || '<p>Khong co du lieu.</p>';
+    showScreen(screens.historyDetail);
+  }
+  document.getElementById('btnBackFromHistDetail').addEventListener('click', ()=>{
+    renderHistoryList();
+    showScreen(screens.history);
+  });
+
+})();
+</script>
+</body>
+</html>
