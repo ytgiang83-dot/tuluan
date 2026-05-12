@@ -117,11 +117,11 @@
 <div class="app-container" id="appContainer">
   <!-- Màn hình đăng ký tên -->
   <div class="screen active" id="screenRegister">
-    <h2>Dang nhap</h2>
-    <p style="margin-bottom:16px;">Nhap ten cua ban de bat dau</p>
+    <h2>Dang Ky</h2>
+    <p style="margin-bottom:16px;">Nhap ten cua ban </p>
     <input type="text" id="inputUsername" placeholder="Ten cua ban...">
     <div class="btn-group center" style="margin-top:16px;">
-      <button class="primary" id="btnRegister">Vao hoc</button>
+      <button class="primary" id="btnRegister">Enter</button>
     </div>
   </div>
 
@@ -350,7 +350,7 @@ const API_URL = 'https://on-tap-api.e14n.workers.dev/data';
 
   function updateUserIndicator() {
     const el = document.getElementById('userIndicator');
-    if (el) el.textContent = currentUser ? 'Nguoi dung: ' + currentUser : '';
+    if (el) el.textContent = currentUser ? 'Ten : ' + currentUser : '';
   }
 
   // Khởi động
