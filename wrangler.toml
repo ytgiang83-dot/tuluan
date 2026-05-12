@@ -1,4 +1,4 @@
-name = "on-tap-api"
+name = "tuluan"
 main = "worker.js"
 compatibility_date = "2025-01-01"
 
