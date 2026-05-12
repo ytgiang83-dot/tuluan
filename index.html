@@ -339,7 +339,7 @@
 
   function updateUserIndicator() {
     const el = document.getElementById('userIndicator');
-    if (el) el.textContent = currentUser ? 'Nguoi dung: ' + currentUser : '';
+    if (el) el.textContent = currentUser ? 'Ten : ' + currentUser : '';
   }
 
   // Kiểm tra khi khởi động
@@ -656,7 +656,7 @@
     const container = document.getElementById('historyList');
     const myHistory = appData.history.filter(h => h.user === currentUser);
     if(myHistory.length===0){
-      container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Chua co lich su.</p>';
+      container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Chua co lich su lam bai.</p>';
       return;
     }
     let html = '';
